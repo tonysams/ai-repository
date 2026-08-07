@@ -132,6 +132,21 @@ function jsonResponse(obj) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
+/** Run this in the editor to test email sending directly (select testNotify, click Run). */
+function testNotify() {
+  notifyNewSubmission({
+    name: 'Editor Test',
+    email: 'test@example.com',
+    role: 'Staff',
+    department: 'Digital Learning Technologies',
+    tool: 'Claude',
+    type: 'Experience story',
+    title: 'Email test from the editor',
+    story: 'Testing whether MailApp.sendEmail delivers to NOTIFY_EMAIL. If this arrives, notifications work.'
+  });
+  Logger.log('testNotify ran — check ' + NOTIFY_EMAIL + ' and the execution log.');
+}
+
 // ---------------------------------------------------------------------------
 // Curation agent — run on a time-driven trigger (e.g. every 15 minutes)
 // ---------------------------------------------------------------------------
