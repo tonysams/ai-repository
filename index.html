@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Experience Repository — University of Utah</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&family=Source+Sans+3:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --crimson: #CC0000;
+    --crimson-soft: #fbeaea;
+    --ink: #1a1a1a;
+    --muted: #6a655d;
+    --faint: #9a958b;
+    --bg: #f4f2ee;
+    --card: #ffffff;
+    --border: #e2ded4;
+    --rule: #ece9e1;
+    --display: 'Archivo', system-ui, sans-serif;
+    --body: 'Source Sans 3', system-ui, sans-serif;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: var(--body); color: var(--ink); background: var(--bg); }
+  a { color: inherit; }
+
+  /* ===== top brand bar ===== */
+  .brandbar {
+    background: #000; color: #fff;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 11px 34px;
+  }
+  .brandbar .left { display: flex; align-items: center; gap: 13px; }
+  .ulogo {
+    width: 30px; height: 30px; border-radius: 4px; background: var(--crimson);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--display); font-weight: 900; font-size: 19px; color: #fff;
+  }
+  .brandbar .wordmark {
+    font-family: var(--display); font-weight: 800; font-size: 13px;
+    letter-spacing: .07em; text-transform: uppercase;
+    padding-left: 13px; border-left: 1px solid rgba(255,255,255,.32);
+  }
+  .brandbar nav { display: flex; gap: 26px; font-family: var(--display);
+    font-weight: 600; font-size: 11.5px; letter-spacing: .09em; text-transform: uppercase;
+    color: rgba(255,255,255,.72); }
+  .brandbar nav span { cursor: pointer; }
+  .brandbar nav span.on { color: #fff; }
+
+  /* ===== masthead ===== */
+  header.mast { background: var(--card); border-bottom: 3px solid var(--crimson); padding: 50px 34px 40px; }
+  .mast .inner { max-width: 1120px; margin: 0 auto; }
+  .eyebrow { font-family: var(--display); font-weight: 700; font-size: 12px;
+    letter-spacing: .18em; text-transform: uppercase; color: var(--crimson); margin-bottom: 16px; }
+  .mast h1 { font-family: var(--display); font-weight: 900; font-size: 60px; line-height: .96;
+    letter-spacing: -.015em; margin-bottom: 18px; max-width: 880px; }
+  .mast h1 span { color: var(--crimson); }
+  .mast p.lede { font-size: 19px; line-height: 1.5; color: #544f48; max-width: 640px; margin-bottom: 22px; }
+  .stats { display: flex; gap: 22px; align-items: center; font-family: var(--display);
+    font-weight: 600; font-size: 13px; letter-spacing: .04em; }
+  .stats b { color: var(--crimson); font-weight: 800; }
+  .stats .sep { color: #cdc9bf; }
+  .mast-row { display: flex; align-items: center; justify-content: space-between; gap: 22px; flex-wrap: wrap; }
+  .mast-cta { flex: none; font-size: 17px; padding: 15px 28px; border-radius: 10px; }
+
+  /* ===== body layout ===== */
+  .layout { max-width: 1120px; margin: 0 auto; padding: 34px 34px 64px;
+    display: grid; grid-template-columns: 262px 1fr; gap: 40px; align-items: start; }
+
+  /* ---- filter rail ---- */
+  aside { position: sticky; top: 24px; display: flex; flex-direction: column; gap: 24px;
+    max-height: calc(100vh - 40px); overflow: auto; }
+  .searchbox { display: flex; align-items: center; gap: 9px; background: var(--card);
+    border: 1px solid var(--border); border-radius: 8px; padding: 11px 13px; }
+  .searchbox input { border: none; background: none; font: 400 14px/1 var(--body); color: var(--ink); width: 100%; }
+  .searchbox input:focus { outline: none; }
+  .facet-label { font-family: var(--display); font-weight: 700; font-size: 11px;
+    letter-spacing: .12em; text-transform: uppercase; color: #8a857b; margin-bottom: 11px; }
+  .facet-list { display: flex; flex-direction: column; gap: 2px; }
+  .facet { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 7px;
+    cursor: pointer; border-left: 3px solid transparent; }
+  .facet .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; box-shadow: 0 0 0 1px rgba(0,0,0,.08); }
+  .facet .name { flex: 1; font-family: var(--display); font-weight: 600; font-size: 13.5px; color: #3a362f; }
+  .facet .count { font: 600 12px/1 var(--body); color: #a7a39a; }
+  .facet.active { background: var(--crimson-soft); border-left-color: var(--crimson); }
+  .facet.active .name, .facet.active .count { color: var(--crimson); }
+  .facet.active .name { font-weight: 800; }
+
+  /* ---- results ---- */
+  .results-head { display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 18px; gap: 14px; flex-wrap: wrap; }
+  .results-title { font-family: var(--display); font-weight: 800; font-size: 22px; letter-spacing: -.01em; }
+  .results-title .n { color: var(--faint); font-weight: 600; font-size: 15px; margin-left: 8px; }
+  .tagchip { display: inline-flex; align-items: center; gap: 6px; background: var(--crimson-soft);
+    color: var(--crimson); font: 700 12px/1 var(--display); padding: 6px 10px; border-radius: 6px; cursor: pointer; }
+  .clear { font-family: var(--display); font-weight: 700; font-size: 12.5px; color: var(--crimson); cursor: pointer; background: none; border: none; }
+  .sortbar { display: flex; align-items: center; gap: 9px; margin: -4px 0 16px; }
+  .sortbar .lbl { font: 600 12px/1 var(--body); color: var(--faint); }
+  .sortbar .note { font: 600 12.5px/1 var(--body); color: var(--faint); }
+  .sortbar .pill { font-family: var(--display); font-weight: 700; font-size: 12px; padding: 6px 11px;
+    border-radius: 6px; cursor: pointer; color: #544f48; background: none; border: none; }
+  .sortbar .pill.active { background: var(--crimson-soft); color: var(--crimson); }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+
+  article.card { background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 19px 20px; display: flex; flex-direction: column; cursor: pointer; transition: box-shadow .15s, border-color .15s;
+    height: 400px; overflow: hidden; }
+  article.card.open { height: auto; overflow: visible; }
+  article.card:hover { box-shadow: 0 14px 30px -16px rgba(0,0,0,.35); border-color: #d8d3c8; }
+  .card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 13px; }
+  .card-tool { display: inline-flex; align-items: center; gap: 7px; font-family: var(--display); font-weight: 700; font-size: 12px; }
+  .card-tool .dot { width: 9px; height: 9px; border-radius: 50%; }
+  .card-type { font-family: var(--display); font-weight: 700; font-size: 9.5px; letter-spacing: .09em;
+    text-transform: uppercase; padding: 3px 8px; border-radius: 4px; }
+  .card h4 { font-family: var(--display); font-weight: 800; font-size: 17px; line-height: 1.18; letter-spacing: -.005em; margin-bottom: 9px; }
+  .card .summary { font-size: 14px; line-height: 1.5; color: var(--muted); margin-bottom: 13px;
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .card.open .summary { -webkit-line-clamp: unset; overflow: visible; }
+  .promptbox { background: #f7f5f0; border: 1px solid var(--rule); border-radius: 6px; padding: 10px 12px; margin-bottom: 13px; }
+  .promptbox .code { font-family: var(--mono); font-size: 11.5px; line-height: 1.5; color: #544f48;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: pre-wrap; }
+  .card.open .promptbox .code { -webkit-line-clamp: unset; }
+  .card.open .summary + .promptbox .code { -webkit-line-clamp: unset; }
+  .fulltext { display: none; font-size: 13.5px; line-height: 1.6; color: #4a463f; white-space: pre-wrap; margin-bottom: 13px; }
+  .card.open .fulltext { display: block; }
+  .card-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+  .card-tags .tg { font: 600 11px/1 var(--body); color: var(--muted); background: #f3f1ea; border-radius: 5px; padding: 4px 8px; cursor: pointer; }
+  .card-foot { display: flex; align-items: center; gap: 9px; padding-top: 13px; border-top: 1px solid var(--rule); margin-top: auto; }
+  .avatar { width: 26px; height: 26px; border-radius: 50%; background: #f0ede6; display: flex; align-items: center;
+    justify-content: center; font-family: var(--display); font-weight: 800; font-size: 10.5px; color: var(--crimson); flex: none; }
+  .card-foot .who { line-height: 1.2; min-width: 0; flex: 1; }
+  .card-foot .who .nm { font-family: var(--display); font-weight: 700; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card-foot .who .rl { font-size: 11.5px; color: var(--faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card-action { font-family: var(--display); font-weight: 700; font-size: 11.5px; color: var(--crimson);
+    background: none; border: none; cursor: pointer; flex: none; }
+
+  .empty { text-align: center; padding: 60px 20px; color: #8a857b; font-size: 15px; }
+  .toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--ink); color: #fff; font: 600 13px/1 var(--display); padding: 12px 20px; border-radius: 8px;
+    opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 100; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ===== contribute modal ===== */
+  .scrim { position: fixed; inset: 0; background: rgba(26,22,18,.5); display: none; align-items: flex-start;
+    justify-content: center; padding: 48px 20px; overflow: auto; z-index: 200; }
+  .scrim.show { display: flex; }
+  .modal { background: var(--card); border-radius: 12px; max-width: 560px; width: 100%; padding: 32px; }
+  .modal h2 { font-family: var(--display); font-weight: 900; font-size: 26px; letter-spacing: -.01em; margin-bottom: 6px; }
+  .modal p.sub { color: var(--muted); font-size: 14.5px; margin-bottom: 22px; }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-family: var(--display); font-weight: 700; font-size: 11px;
+    letter-spacing: .08em; text-transform: uppercase; color: #8a857b; margin-bottom: 6px; }
+  .field input, .field textarea, .field select { width: 100%; font: 400 14.5px/1.4 var(--body); color: var(--ink);
+    border: 1px solid #d8d3c8; border-radius: 7px; padding: 10px 12px; background: #fff; }
+  .field textarea { min-height: 130px; resize: vertical; }
+  .field input:focus, .field textarea:focus, .field select:focus { outline: 2px solid var(--crimson-soft); border-color: var(--crimson); }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .typetoggle { display: flex; gap: 8px; }
+  .typetoggle button { flex: 1; font-family: var(--display); font-weight: 700; font-size: 13px; padding: 10px;
+    border-radius: 7px; border: 1px solid #d8d3c8; background: #fff; color: #544f48; cursor: pointer; }
+  .typetoggle button.active { background: var(--crimson); color: #fff; border-color: var(--crimson); }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; align-items: center; margin-top: 22px; }
+  .btn { font-family: var(--display); font-weight: 700; font-size: 14px; padding: 11px 20px; border-radius: 8px; cursor: pointer; border: 1px solid var(--crimson); }
+  .btn.primary { background: var(--crimson); color: #fff; }
+  .btn.ghost { background: #fff; color: var(--crimson); }
+  .formnote { font-size: 13px; margin-right: auto; }
+  .formnote.err { color: var(--crimson); }
+  .formnote.ok { color: #1a7f4b; }
+  .contribute-cta { background: var(--crimson); color: #fff; }
+
+  @media (max-width: 860px) {
+    .layout { grid-template-columns: 1fr; }
+    aside { position: static; max-height: none; }
+    .grid { grid-template-columns: 1fr; }
+    .mast h1 { font-size: 44px; }
+    .brandbar .wordmark { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="brandbar">
+  <div class="left">
+    <div class="ulogo">U</div>
+    <span class="wordmark">The University of Utah</span>
+  </div>
+  <nav>
+    <span class="on" data-scrolltop>Repository</span>
+    <span data-rai>RAI</span>
+    <span class="on" data-contribute>Contribute</span>
+  </nav>
+</div>
+
+<header class="mast">
+  <div class="inner">
+    <div class="eyebrow">Teaching &amp; Learning Technologies</div>
+    <h1>AI Experience <span>Repository</span></h1>
+    <p class="lede">How our staff and faculty actually use AI — the prompts they wrote, the workflows they built, and the lessons they learned. Every entry is reviewed before it appears.</p>
+    <div class="mast-row">
+      <div class="stats">
+        <span><b id="stat-total">0</b> experiences</span>
+        <span class="sep">/</span>
+        <span><b>6</b> tools</span>
+        <span class="sep">/</span>
+        <span><b id="stat-depts">0</b> departments</span>
+      </div>
+      <button class="btn primary mast-cta" data-contribute>＋ Share your experience</button>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+  <aside>
+    <div class="searchbox">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a7a39a" stroke-width="2.4"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
+      <input id="search" type="search" placeholder="Search prompts, tags, units…">
+    </div>
+    <div>
+      <div class="facet-label">Type</div>
+      <div class="facet-list" id="facet-type"></div>
+    </div>
+    <div>
+      <div class="facet-label">Tool</div>
+      <div class="facet-list" id="facet-tool"></div>
+    </div>
+    <div>
+      <div class="facet-label">Category</div>
+      <div class="facet-list" id="facet-category"></div>
+    </div>
+  </aside>
+
+  <main>
+    <div class="results-head">
+      <div class="results-title"><span id="results-title">All experiences</span><span class="n" id="results-count"></span></div>
+      <div id="results-controls"></div>
+    </div>
+    <div class="sortbar" id="sortbar"></div>
+    <div class="grid" id="grid"></div>
+    <div class="empty" id="empty" style="display:none">Nothing matches those filters — try clearing one.</div>
+  </main>
+</div>
+
+<div class="toast" id="toast">Prompt copied</div>
+
+<!-- ===== contribute modal ===== -->
+<div class="scrim" id="scrim">
+  <div class="modal" id="modal">
+    <h2>Share an AI experience</h2>
+    <p class="sub">A prompt you reuse, or a story of what worked. Reviewed before it appears.</p>
+    <form id="form">
+      <div class="field">
+        <label>What are you sharing?</label>
+        <div class="typetoggle" id="typetoggle">
+          <button type="button" data-type="Experience story" class="active">Experience story</button>
+          <button type="button" data-type="Prompt template">Prompt template</button>
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Your name (optional)</label><input name="name" autocomplete="name"></div>
+        <div class="field"><label>Email (optional, never shown)</label><input name="email" type="email" autocomplete="email"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Role</label>
+          <select name="role"><option>Faculty</option><option>Staff</option><option>Administrator</option><option>Graduate Student</option><option>Other</option></select>
+        </div>
+        <div class="field"><label>Department / unit</label><input name="department"></div>
+      </div>
+      <div class="field"><label>Which tool? *</label>
+        <select name="tool"><option value="">Choose one…</option><option>ChatGPT Edu</option><option>Google Gemini</option><option>NotebookLM</option><option>Claude</option><option>Microsoft Copilot</option><option>Other</option></select>
+      </div>
+      <div class="field"><label>Title</label><input name="title" placeholder="e.g., Drafting rubrics from a messy assignment brief"></div>
+      <div class="field"><label>Your experience or prompt *</label>
+        <textarea name="story" placeholder="Describe what you did and what happened — or paste the reusable prompt."></textarea>
+      </div>
+      <div class="modal-actions">
+        <span class="formnote" id="formnote"></span>
+        <button type="button" class="btn ghost" id="cancel">Cancel</button>
+        <button type="submit" class="btn primary" id="submit">Submit experience</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+// ── Configuration ───────────────────────────────────────────────────────────
+const API_URL = 'https://script.google.com/macros/s/AKfycbzUKuExqLAbcdG_akyNZ10C-8StXfKSG_ljlE-T0AkIAnMub88dLKcUYEa9p4vIo4O-VQ/exec';
+const RAI_URL = 'https://rai.utah.edu/';
+// ────────────────────────────────────────────────────────────────────────────
+
+const TOOLS = [
+  { id: 'chatgpt',    name: 'ChatGPT Edu',       color: '#10a37f' },
+  { id: 'gemini',     name: 'Google Gemini',     color: '#4587f4' },
+  { id: 'notebooklm', name: 'NotebookLM',        color: '#e8833a' },
+  { id: 'claude',     name: 'Claude',            color: '#d97757' },
+  { id: 'copilot',    name: 'Microsoft Copilot', color: '#5b6ee0' },
+  { id: 'other',      name: 'Other',             color: '#8a857b' },
+];
+const CATEGORIES = ['Teaching', 'Research', 'Administration', 'Student Support', 'Professional Development'];
+
+const state = { type: 'all', tool: 'all', category: 'all', tag: '', query: '', sortBy: 'newest', entries: null,
+  form: { name:'', email:'', role:'Faculty', department:'', type:'Experience story', tool:'', title:'', story:'' } };
+
+function toolIdFromName(name) {
+  const n = String(name || '').toLowerCase();
+  if (n.includes('chatgpt')) return 'chatgpt';
+  if (n.includes('gemini')) return 'gemini';
+  if (n.includes('notebook')) return 'notebooklm';
+  if (n.includes('claude')) return 'claude';
+  if (n.includes('copilot')) return 'copilot';
+  return 'other';
+}
+function toolMeta(id) { return TOOLS.find(t => t.id === id) || TOOLS[5]; }
+function initials(name) {
+  return String(name).replace(/^(Dr\.|Prof\.)\s*/, '').split(/\s+/).map(w => w[0] || '').join('').slice(0, 2).toUpperCase();
+}
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// ── Data load ────────────────────────────────────────────────────────────────
+async function load() {
+  if (API_URL.startsWith('PASTE_')) { state.entries = SAMPLE; render(); return; }
+  try {
+    const res = await fetch(API_URL);
+    const d = await res.json();
+    const list = (d && Array.isArray(d.entries)) ? d.entries : [];
+    if (!list.length) { state.entries = SAMPLE; render(); return; }
+    state.entries = list.map(e => ({
+      tool: toolIdFromName(e.tool),
+      type: e.type === 'Prompt template' ? 'prompt' : 'story',
+      category: e.category || '',
+      title: e.title || '(untitled)',
+      summary: e.summary || (e.story || '').slice(0, 180),
+      story: e.story || '',
+      tags: Array.isArray(e.tags) ? e.tags : [],
+      author: e.name || 'Anonymous', role: e.role || '', dept: e.department || '',
+      date: e.date || '',
+    }));
+  } catch (err) {
+    state.entries = SAMPLE;
+  }
+  render();
+}
+
+// ── Filtering ────────────────────────────────────────────────────────────────
+function matches(e, ignore) {
+  const { type, tool, category, tag, query } = state;
+  if (ignore !== 'type' && type !== 'all' && e.type !== type) return false;
+  if (ignore !== 'tool' && tool !== 'all' && e.tool !== tool) return false;
+  if (ignore !== 'category' && category !== 'all' && e.category !== category) return false;
+  if (tag && !(e.tags || []).includes(tag)) return false;
+  if (query.trim()) {
+    const q = query.toLowerCase();
+    const hay = (e.title + ' ' + e.summary + ' ' + e.story + ' ' + (e.tags || []).join(' ') + ' ' + e.dept + ' ' + e.role + ' ' + toolMeta(e.tool).name).toLowerCase();
+    if (!hay.includes(q)) return false;
+  }
+  return true;
+}
+
+// ── Render ───────────────────────────────────────────────────────────────────
+function facetRow(active, name, count, opts) {
+  const el = document.createElement('div');
+  el.className = 'facet' + (active ? ' active' : '');
+  el.innerHTML = (opts.dot ? `<span class="dot" style="background:${opts.dot}"></span>` : '') +
+    `<span class="name">${esc(name)}</span><span class="count">${count}</span>`;
+  el.onclick = opts.onClick;
+  return el;
+}
+
+function render() {
+  const entries = state.entries || [];
+  document.getElementById('stat-total').textContent = entries.length;
+  document.getElementById('stat-depts').textContent = new Set(entries.map(e => e.dept).filter(Boolean)).size || 0;
+
+  // Type facet
+  const typeDefs = [['all', 'All types'], ['prompt', 'Prompt templates'], ['story', 'Experience stories']];
+  const tw = document.getElementById('facet-type'); tw.innerHTML = '';
+  typeDefs.forEach(([id, name]) => {
+    const count = id === 'all' ? entries.filter(e => matches(e, 'type')).length : entries.filter(e => e.type === id && matches(e, 'type')).length;
+    tw.appendChild(facetRow(state.type === id, name, count, { onClick: () => { state.type = id; render(); } }));
+  });
+
+  // Tool facet
+  const toolDefs = [{ id: 'all', name: 'All tools', color: '#cfcabf' }, ...TOOLS];
+  const ow = document.getElementById('facet-tool'); ow.innerHTML = '';
+  toolDefs.forEach(t => {
+    const count = t.id === 'all' ? entries.filter(e => matches(e, 'tool')).length : entries.filter(e => e.tool === t.id && matches(e, 'tool')).length;
+    ow.appendChild(facetRow(state.tool === t.id, t.name, count, { dot: t.color, onClick: () => { state.tool = t.id; render(); } }));
+  });
+
+  // Category facet
+  const catDefs = [['all', 'All categories'], ...CATEGORIES.map(c => [c, c])];
+  const cw = document.getElementById('facet-category'); cw.innerHTML = '';
+  catDefs.forEach(([id, name]) => {
+    const count = id === 'all' ? entries.filter(e => matches(e, 'category')).length : entries.filter(e => e.category === id && matches(e, 'category')).length;
+    cw.appendChild(facetRow(state.category === id, name, count, { onClick: () => { state.category = id; render(); } }));
+  });
+
+  // Results
+  const matched = entries.filter(e => matches(e));
+  const { type, tool, category, tag, query } = state;
+  let title = 'All experiences';
+  if (tool !== 'all') title = toolMeta(tool).name;
+  else if (category !== 'all') title = category;
+  if (type === 'prompt') title = (title === 'All experiences' ? '' : title + ' ') + 'prompt templates';
+  else if (type === 'story') title = (title === 'All experiences' ? '' : title + ' ') + 'experience stories';
+  document.getElementById('results-title').textContent = title;
+  document.getElementById('results-count').textContent = matched.length;
+
+  // Controls (active tag chip + clear)
+  const ctl = document.getElementById('results-controls'); ctl.innerHTML = '';
+  if (tag) {
+    const chip = document.createElement('span');
+    chip.className = 'tagchip';
+    chip.innerHTML = `#${esc(tag)} ✕`;
+    chip.onclick = () => { state.tag = ''; render(); };
+    ctl.appendChild(chip);
+  }
+  const hasFilters = type !== 'all' || tool !== 'all' || category !== 'all' || tag || query.trim();
+  if (hasFilters) {
+    const clr = document.createElement('button');
+    clr.className = 'clear'; clr.textContent = '✕ Clear all filters';
+    clr.onclick = () => { state.type = 'all'; state.tool = 'all'; state.category = 'all'; state.tag = ''; state.query = ''; document.getElementById('search').value = ''; render(); };
+    ctl.appendChild(clr);
+  }
+
+  // Sort
+  const isSearching = !!query.trim();
+  const sorted = matched.slice();
+  if (isSearching) {
+    // relevance: title matches rank above summary/tag/body matches, then newest
+    const q = query.toLowerCase();
+    const score = e => (e.title.toLowerCase().includes(q) ? 0 : 1);
+    sorted.sort((a, b) => score(a) - score(b) || (new Date(b.date || 0) - new Date(a.date || 0)));
+  } else if (state.sortBy === 'newest') {
+    sorted.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+  } else if (state.sortBy === 'az') {
+    sorted.sort((a, b) => a.title.localeCompare(b.title));
+  } else if (state.sortBy === 'department') {
+    sorted.sort((a, b) => (a.dept || '').localeCompare(b.dept || ''));
+  }
+
+  // Sort bar — relevance note while searching, otherwise sort pills
+  const sb = document.getElementById('sortbar'); sb.innerHTML = '';
+  if (isSearching) {
+    const note = document.createElement('span');
+    note.className = 'note'; note.textContent = 'Sorted by relevance to your search';
+    sb.appendChild(note);
+  } else {
+    const lbl = document.createElement('span');
+    lbl.className = 'lbl'; lbl.textContent = 'Sort';
+    sb.appendChild(lbl);
+    [['newest', 'Newest'], ['az', 'A–Z'], ['department', 'Department']].forEach(([id, label]) => {
+      const pill = document.createElement('button');
+      pill.className = 'pill' + (state.sortBy === id ? ' active' : '');
+      pill.textContent = label;
+      pill.onclick = () => { state.sortBy = id; render(); };
+      sb.appendChild(pill);
+    });
+  }
+
+  // Grid
+  const grid = document.getElementById('grid'); grid.innerHTML = '';
+  document.getElementById('empty').style.display = sorted.length ? 'none' : 'block';
+  sorted.forEach(e => grid.appendChild(card(e)));
+}
+
+function card(e) {
+  const tm = toolMeta(e.tool);
+  const isPrompt = e.type === 'prompt';
+  const tags = (e.tags || []).slice(0, 3);
+  const tagBg = isPrompt ? '#fbeaea' : '#eef0f2';
+  const tagFg = isPrompt ? '#CC0000' : '#5a5650';
+
+  const art = document.createElement('article');
+  art.className = 'card';
+  art.innerHTML = `
+    <div class="card-top">
+      <span class="card-tool"><span class="dot" style="background:${tm.color}"></span>${esc(tm.name)}</span>
+      <span class="card-type" style="color:${tagFg};background:${tagBg}">${isPrompt ? 'Prompt' : 'Story'}</span>
+    </div>
+    <h4>${esc(e.title)}</h4>
+    <p class="summary">${esc(e.summary)}</p>
+    ${isPrompt && e.story ? `<div class="promptbox"><div class="code">${esc(e.story)}</div></div>` : ''}
+    ${!isPrompt && e.story ? `<div class="fulltext">${esc(e.story)}</div>` : ''}
+    ${tags.length ? `<div class="card-tags">${tags.map(t => `<span class="tg" data-tag="${esc(t)}">#${esc(t)}</span>`).join('')}</div>` : ''}
+    <div class="card-foot">
+      <span class="avatar">${esc(initials(e.author))}</span>
+      <div class="who">
+        <div class="nm">${esc(e.author)}</div>
+        <div class="rl">${esc(e.role)}${e.dept ? ' · ' + esc(e.dept) : ''}</div>
+      </div>
+      <button class="card-action">${isPrompt ? 'Copy prompt' : 'Read full story'}</button>
+    </div>`;
+
+  // tag click → filter (don't toggle card)
+  art.querySelectorAll('.tg').forEach(tEl => {
+    tEl.onclick = (ev) => { ev.stopPropagation(); state.tag = tEl.dataset.tag; render(); };
+  });
+
+  // primary action
+  const action = art.querySelector('.card-action');
+  action.onclick = (ev) => {
+    ev.stopPropagation();
+    if (isPrompt) {
+      if (navigator.clipboard) navigator.clipboard.writeText(e.story);
+      toast('Prompt copied');
+    } else {
+      art.classList.toggle('open');
+      action.textContent = art.classList.contains('open') ? 'Hide story' : 'Read full story';
+    }
+  };
+  // clicking the card body expands prompts/stories
+  art.onclick = () => {
+    art.classList.toggle('open');
+    if (!isPrompt) action.textContent = art.classList.contains('open') ? 'Hide story' : 'Read full story';
+  };
+  return art;
+}
+
+let toastTimer;
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+// ── Wiring ───────────────────────────────────────────────────────────────────
+document.getElementById('search').addEventListener('input', e => { state.query = e.target.value; render(); });
+document.querySelector('[data-scrolltop]').onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+document.querySelector('[data-rai]').onclick = () => window.open(RAI_URL, '_blank', 'noopener');
+
+// ── Contribute modal ─────────────────────────────────────────────────────────
+const scrim = document.getElementById('scrim');
+const form = document.getElementById('form');
+const note = document.getElementById('formnote');
+function openModal() { note.textContent = ''; note.className = 'formnote'; scrim.classList.add('show'); }
+function closeModal() { scrim.classList.remove('show'); }
+document.querySelectorAll('[data-contribute]').forEach(el => el.onclick = openModal);
+document.getElementById('cancel').onclick = closeModal;
+scrim.addEventListener('click', e => { if (e.target === scrim) closeModal(); });
+
+document.getElementById('typetoggle').querySelectorAll('button').forEach(b => {
+  b.onclick = () => {
+    document.querySelectorAll('#typetoggle button').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    state.form.type = b.dataset.type;
+  };
+});
+
+form.addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const data = Object.fromEntries(new FormData(form).entries());
+  data.type = state.form.type;
+  if (!data.tool) { note.textContent = 'Please choose which tool you used.'; note.className = 'formnote err'; return; }
+  if (!data.story.trim()) { note.textContent = 'Please describe your experience.'; note.className = 'formnote err'; return; }
+  note.textContent = 'Submitting…'; note.className = 'formnote';
+  document.getElementById('submit').disabled = true;
+  try {
+    await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(data) });
+    note.textContent = 'Thank you! Your experience was submitted and will appear after review.';
+    note.className = 'formnote ok';
+    form.reset();
+    document.querySelectorAll('#typetoggle button').forEach((x, i) => x.classList.toggle('active', i === 0));
+    state.form.type = 'Experience story';
+    setTimeout(closeModal, 2400);
+  } catch (err) {
+    note.textContent = 'Something went wrong sending your submission. Please try again.';
+    note.className = 'formnote err';
+  } finally {
+    document.getElementById('submit').disabled = false;
+  }
+});
+
+// ── Sample data (fallback when backend is empty/unreachable) ──────────────────
+const SAMPLE = [
+  { tool:'chatgpt', type:'prompt', category:'Teaching',
+    title:'Drafting grading rubrics from a messy assignment brief',
+    summary:'A reusable prompt that turns a half-formed assignment description into a clean 4-level rubric across clarity, evidence, and analysis.',
+    story:'You are an experienced instructor. From the assignment brief below, draft a grading rubric with 4 performance levels (Exemplary, Proficient, Developing, Beginning) across these criteria: clarity, use of evidence, analysis, mechanics. Keep each descriptor to one sentence.\n\nBRIEF: """{paste your brief}"""',
+    tags:['assessment','grading-feedback','course-design'], author:'Dr. R. Méndez', role:'Faculty', dept:'Biology' },
+  { tool:'gemini', type:'story', category:'Student Support',
+    title:'Summarizing 40 advising emails into one weekly digest',
+    summary:'Every Monday the week’s student questions go into Gemini and come back as a themed digest — surfacing that half were about the same add/drop deadline.',
+    story:'I paste the subject lines and bodies of the week’s advising emails and ask Gemini to cluster them into themes with counts, then flag anything urgent. It takes five minutes and tells me what to address in the next newsletter.',
+    tags:['advising','email-drafting','summarization'], author:'J. Okafor', role:'Staff', dept:'Academic Advising' },
+  { tool:'notebooklm', type:'story', category:'Administration',
+    title:'Making 200 pages of policy searchable for the front desk',
+    summary:'Loaded the advising handbook and registration policies into a notebook so student-workers can ask questions and get cited answers.',
+    story:'I uploaded our handbook and the registration policy PDFs into a NotebookLM notebook. Now student-workers ask it questions instead of interrupting me, and every answer cites the source page so we can verify it.',
+    tags:['policy','administrative','summarization'], author:'M. Nguyen', role:'Staff', dept:'Office of the Registrar' },
+  { tool:'claude', type:'prompt', category:'Teaching',
+    title:'Turning lecture notes into a weekly student recap',
+    summary:'Converts a rough lecture outline into a warm recap email with three takeaways and one reflective question.',
+    story:'Rewrite my lecture notes into a warm 150-word recap email for undergraduates. Include: a one-line summary, three key takeaways as bullets, and one reflective question. NOTES: """{paste notes}"""',
+    tags:['teaching','writing','summarization'], author:'Prof. A. Lindqvist', role:'Faculty', dept:'History' },
+];
+
+load();
+</script>
+</body>
+</html>
