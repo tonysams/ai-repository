@@ -16,7 +16,7 @@ var SHEET_NAME = 'Submissions';
 
 // Where to send "new submission" notifications. Change to your uMail if you prefer.
 // Leave as '' to turn notifications off.
-var NOTIFY_EMAIL = 'twowheeltony@gmail.com';
+var NOTIFY_EMAIL = 'u0268212@umail.utah.edu';
 var SHEET_URL = 'https://docs.google.com/spreadsheets/d/1Frg1bD2fEYAzJ813ZoehSYMHjiV4srzMnGNzTakumVk/edit';
 
 var COL = {
