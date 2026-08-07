@@ -14,6 +14,11 @@
 
 var SHEET_NAME = 'Submissions';
 
+// Where to send "new submission" notifications. Change to your uMail if you prefer.
+// Leave as '' to turn notifications off.
+var NOTIFY_EMAIL = 'twowheeltony@gmail.com';
+var SHEET_URL = 'https://docs.google.com/spreadsheets/d/1Frg1bD2fEYAzJ813ZoehSYMHjiV4srzMnGNzTakumVk/edit';
+
 var COL = {
   TIMESTAMP: 1, NAME: 2, EMAIL: 3, ROLE: 4, DEPARTMENT: 5, TOOL: 6,
   TITLE: 7, STORY: 8, STATUS: 9, TAGS: 10, SUMMARY: 11, CATEGORY: 12, TYPE: 13
@@ -94,7 +99,31 @@ function doPost(e) {
     ENTRY_TYPES.indexOf(data.type) !== -1 ? data.type : 'Experience story'
   ]);
 
+  // Notify — never let a mail failure break the submission.
+  try { notifyNewSubmission(data); } catch (err) { console.error('Notify failed: ' + err); }
+
   return jsonResponse({ ok: true });
+}
+
+/** Emails NOTIFY_EMAIL when a new submission arrives. Does not change the review workflow. */
+function notifyNewSubmission(data) {
+  if (!NOTIFY_EMAIL) return;
+  var type = ENTRY_TYPES.indexOf(data.type) !== -1 ? data.type : 'Experience story';
+  var story = String(data.story || '');
+  var snippet = story.length > 400 ? story.slice(0, 400) + '…' : story;
+  var subject = 'AI Repository — new ' + type.toLowerCase() + ': ' + (data.title || '(untitled)');
+  var body =
+    'A new submission just arrived and is waiting in the queue (status NEW).\n\n' +
+    'Title:      ' + (data.title || '(untitled)') + '\n' +
+    'Type:       ' + type + '\n' +
+    'Tool:       ' + (data.tool || '') + '\n' +
+    'From:       ' + (data.name || 'Anonymous') +
+      (data.role ? ' · ' + data.role : '') + (data.department ? ' · ' + data.department : '') + '\n' +
+    'Email:      ' + (data.email || '(not provided)') + '\n\n' +
+    'What they wrote:\n' + snippet + '\n\n' +
+    '— It will be auto-tagged within ~15 min, then it is yours to review.\n' +
+    'Open the Sheet to approve: ' + SHEET_URL + '\n';
+  MailApp.sendEmail(NOTIFY_EMAIL, subject, body);
 }
 
 function jsonResponse(obj) {
