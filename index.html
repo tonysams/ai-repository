@@ -106,8 +106,15 @@
 
   article.card { background: var(--card); border: 1px solid var(--border); border-radius: 10px;
     padding: 19px 20px; display: flex; flex-direction: column; cursor: pointer; transition: box-shadow .15s, border-color .15s;
-    height: 400px; overflow: hidden; }
+    height: 400px; overflow: hidden; position: relative; }
   article.card.open { height: auto; overflow: visible; }
+  .card-close { position: absolute; top: 15px; right: 16px; display: none; width: 24px; height: 24px;
+    border: none; border-radius: 50%; background: #f3f1ea; color: #544f48; font-size: 12px; line-height: 1;
+    cursor: pointer; align-items: center; justify-content: center; }
+  .card-close:hover { background: var(--crimson-soft); color: var(--crimson); }
+  .card.open .card-close { display: inline-flex; }
+  .card.open .card-type { display: none; }
+  .card.open .promptbox .code { max-height: 320px; overflow: auto; }
   article.card:hover { box-shadow: 0 14px 30px -16px rgba(0,0,0,.35); border-color: #d8d3c8; }
   .card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 13px; }
   .card-tool { display: inline-flex; align-items: center; gap: 7px; font-family: var(--display); font-weight: 700; font-size: 12px; }
@@ -475,6 +482,7 @@ function card(e) {
   const art = document.createElement('article');
   art.className = 'card';
   art.innerHTML = `
+    <button class="card-close" title="Collapse" aria-label="Collapse">✕</button>
     <div class="card-top">
       <span class="card-tool"><span class="dot" style="background:${tm.color}"></span>${esc(tm.name)}</span>
       <span class="card-type" style="color:${tagFg};background:${tagBg}">${isPrompt ? 'Prompt' : 'Story'}</span>
@@ -490,7 +498,7 @@ function card(e) {
         <div class="nm">${esc(e.author)}</div>
         <div class="rl">${esc(e.role)}${e.dept ? ' · ' + esc(e.dept) : ''}</div>
       </div>
-      <button class="card-action">${isPrompt ? 'Copy prompt' : 'Read full story'}</button>
+      <button class="card-action" data-kind="${isPrompt ? 'copy' : 'story'}">${isPrompt ? 'Copy prompt' : 'Read full story'}</button>
     </div>`;
 
   // tag click → filter (don't toggle card)
@@ -498,24 +506,44 @@ function card(e) {
     tEl.onclick = (ev) => { ev.stopPropagation(); state.tag = tEl.dataset.tag; render(); };
   });
 
-  // primary action
   const action = art.querySelector('.card-action');
+  const setOpen = (open) => {
+    art.classList.toggle('open', open);
+    if (!isPrompt) action.textContent = open ? 'Hide story' : 'Read full story';
+  };
+  // Accordion: opening one card collapses any other that's open.
+  const toggle = () => {
+    const willOpen = !art.classList.contains('open');
+    if (willOpen) document.querySelectorAll('article.card.open').forEach(c => { if (c !== art) collapseCard(c); });
+    setOpen(willOpen);
+  };
+
+  // tag click → filter (don't toggle card)
+  art.querySelectorAll('.tg').forEach(tEl => {
+    tEl.onclick = (ev) => { ev.stopPropagation(); state.tag = tEl.dataset.tag; render(); };
+  });
+  // explicit close button
+  art.querySelector('.card-close').onclick = (ev) => { ev.stopPropagation(); setOpen(false); };
+  // primary action: copy (prompt) or expand/collapse (story)
   action.onclick = (ev) => {
     ev.stopPropagation();
     if (isPrompt) {
       if (navigator.clipboard) navigator.clipboard.writeText(e.story);
       toast('Prompt copied');
     } else {
-      art.classList.toggle('open');
-      action.textContent = art.classList.contains('open') ? 'Hide story' : 'Read full story';
+      toggle();
     }
   };
-  // clicking the card body expands prompts/stories
-  art.onclick = () => {
-    art.classList.toggle('open');
-    if (!isPrompt) action.textContent = art.classList.contains('open') ? 'Hide story' : 'Read full story';
-  };
+  // clicking the card body expands/collapses
+  art.onclick = toggle;
   return art;
+}
+
+/** Collapse a card element and reset its story action label. */
+function collapseCard(c) {
+  c.classList.remove('open');
+  const a = c.querySelector('.card-action');
+  if (a && a.dataset.kind === 'story') a.textContent = 'Read full story';
 }
 
 let toastTimer;
