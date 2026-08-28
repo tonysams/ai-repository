@@ -84,6 +84,14 @@
   .facet .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; box-shadow: 0 0 0 1px rgba(0,0,0,.08); }
   .facet .name { flex: 1; font-family: var(--display); font-weight: 600; font-size: 13.5px; color: #3a362f; }
   .facet .count { font: 600 12px/1 var(--body); color: #a7a39a; }
+  .rail-cta { background: var(--crimson); border-radius: 10px; padding: 20px; color: #fff;
+    box-shadow: 0 8px 22px -10px rgba(204,0,0,.6); }
+  .rail-cta-h { font-family: var(--display); font-weight: 800; font-size: 18px; line-height: 1.15; margin-bottom: 7px; }
+  .rail-cta p { font-size: 13.5px; line-height: 1.45; color: rgba(255,255,255,.9); margin-bottom: 15px; }
+  .rail-cta-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;
+    background: #fff; color: var(--crimson); border: none; border-radius: 7px; padding: 11px; cursor: pointer;
+    font-family: var(--display); font-weight: 800; font-size: 14px; letter-spacing: .02em; }
+  .rail-cta-btn span { font-size: 18px; line-height: 0; }
   .facet.active { background: var(--crimson-soft); border-left-color: var(--crimson); }
   .facet.active .name, .facet.active .count { color: var(--crimson); }
   .facet.active .name { font-weight: 800; }
@@ -235,6 +243,11 @@
     <div>
       <div class="facet-label">Category</div>
       <div class="facet-list" id="facet-category"></div>
+    </div>
+    <div class="rail-cta">
+      <div class="rail-cta-h">Used AI in your work?</div>
+      <p>Share a prompt or a story. It takes about two minutes — we tag and review it, then it goes live.</p>
+      <button class="rail-cta-btn" data-contribute><span>+</span> Share your experience</button>
     </div>
   </aside>
 
