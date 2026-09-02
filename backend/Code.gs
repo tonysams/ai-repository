@@ -186,7 +186,7 @@ function curateWithClaude(submission) {
   if (!apiKey) throw new Error('ANTHROPIC_API_KEY is not set in Script Properties');
 
   var payload = {
-    model: 'claude-opus-4-8',
+    model: 'claude-opus-5',
     max_tokens: 1024,
     system: 'You curate a university repository of staff and faculty AI experiences. ' +
       'For each submission, write a one-to-two sentence summary in plain language, ' +
