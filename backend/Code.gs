@@ -2,14 +2,22 @@
  * AI Experience Repository — Google Apps Script backend
  *
  * Bound to a Google Sheet with a tab named "Submissions" and this header row:
- * Timestamp | Name | Email | Role | Department | Tool | Title | Story | Status | Tags | Summary | Category | Type
+ * Timestamp | Name | Email | Role | Department | Tool | Title | Story | Status | Tags | Summary | Category | Type | Embedding | Related
  *
  * Status lifecycle: NEW -> TAGGED (by the curation agent) -> APPROVED (by you) -> visible on the site
  *
  * Setup (see README.md):
- * 1. Script Properties: add ANTHROPIC_API_KEY
+ * 1. Script Properties: add ANTHROPIC_API_KEY (curation) and OPENAI_API_KEY (embeddings)
  * 2. Deploy > New deployment > Web app, execute as Me, access: Anyone
  * 3. Triggers: time-driven trigger on curateNewSubmissions, every 15 minutes
+ * 4. (optional) time-driven trigger on refreshRelated, every 15 minutes, to keep the
+ *    "Related experiences" links current as you approve entries. Or use the custom
+ *    "AI Repository > Rebuild related links" menu button after an approval session.
+ *
+ * Semantic "Related experiences" (columns N/O):
+ *   - N (Embedding): each entry's vector, cached as JSON so it is only computed once.
+ *   - O (Related): JSON array of the top matches [{id,title,department,tool,score}].
+ *   Anthropic has no embeddings API, so embeddings use OpenAI text-embedding-3-small.
  */
 
 var SHEET_NAME = 'Submissions';
@@ -21,8 +29,15 @@ var SHEET_URL = 'https://docs.google.com/spreadsheets/d/1Frg1bD2fEYAzJ813ZoehSYM
 
 var COL = {
   TIMESTAMP: 1, NAME: 2, EMAIL: 3, ROLE: 4, DEPARTMENT: 5, TOOL: 6,
-  TITLE: 7, STORY: 8, STATUS: 9, TAGS: 10, SUMMARY: 11, CATEGORY: 12, TYPE: 13
+  TITLE: 7, STORY: 8, STATUS: 9, TAGS: 10, SUMMARY: 11, CATEGORY: 12, TYPE: 13,
+  EMBEDDING: 14, RELATED: 15
 };
+
+// "Related experiences" tuning.
+var EMBED_MODEL = 'text-embedding-3-small';
+var EMBED_DIMS = 512;      // smaller vectors: lighter cells, negligible quality loss
+var RELATED_TOP_K = 3;     // how many related entries to show per card
+var RELATED_MIN_SIM = 0.30; // ignore weak matches below this cosine similarity
 
 var ENTRY_TYPES = ['Prompt template', 'Experience story'];
 
@@ -63,7 +78,8 @@ function doGet(e) {
       tags: String(r[COL.TAGS - 1]).split(',').map(function (t) { return t.trim(); }).filter(String),
       summary: r[COL.SUMMARY - 1],
       category: r[COL.CATEGORY - 1],
-      type: r[COL.TYPE - 1] || ''
+      type: r[COL.TYPE - 1] || '',
+      related: parseRelated(r[COL.RELATED - 1])
     });
   }
 
@@ -173,6 +189,15 @@ function curateNewSubmissions() {
       sheet.getRange(rowNum, COL.SUMMARY).setValue(result.summary);
       sheet.getRange(rowNum, COL.CATEGORY).setValue(result.category);
       sheet.getRange(rowNum, COL.STATUS).setValue('TAGGED');
+
+      // Compute + cache the embedding once, so it never needs re-embedding.
+      // A failure here must not block tagging — related links are a nice-to-have.
+      try {
+        var vec = embedText(r[COL.TITLE - 1] + '\n' + result.summary + '\n' + r[COL.STORY - 1]);
+        sheet.getRange(rowNum, COL.EMBEDDING).setValue(JSON.stringify(vec));
+      } catch (embErr) {
+        console.error('Embedding failed for row ' + rowNum + ': ' + embErr);
+      }
     } catch (err) {
       // Leave the row as NEW so the next run retries; log for inspection.
       console.error('Curation failed for row ' + (i + 1) + ': ' + err);
@@ -256,4 +281,121 @@ function testCuration() {
     story: 'I upload PDFs of journal articles and ask Claude to extract the methodology and key findings into a comparison table. It cut my lit review prep time roughly in half.'
   });
   console.log(JSON.stringify(result, null, 2));
+}
+
+// ---------------------------------------------------------------------------
+// Related experiences — semantic "similar workflows across disciplines"
+// ---------------------------------------------------------------------------
+
+/** Embeds text with OpenAI and returns the vector (array of floats). */
+function embedText(text) {
+  var key = PropertiesService.getScriptProperties().getProperty('OPENAI_API_KEY');
+  if (!key) throw new Error('OPENAI_API_KEY is not set in Script Properties');
+
+  var response = UrlFetchApp.fetch('https://api.openai.com/v1/embeddings', {
+    method: 'post',
+    contentType: 'application/json',
+    headers: { Authorization: 'Bearer ' + key },
+    payload: JSON.stringify({ model: EMBED_MODEL, input: String(text).slice(0, 8000), dimensions: EMBED_DIMS }),
+    muteHttpExceptions: true
+  });
+
+  var code = response.getResponseCode();
+  if (code !== 200) throw new Error('Embedding API error ' + code + ': ' + response.getContentText());
+  return JSON.parse(response.getContentText()).data[0].embedding;
+}
+
+/** Cosine similarity between two equal-length vectors. */
+function cosineSim(a, b) {
+  var dot = 0, na = 0, nb = 0;
+  for (var i = 0; i < a.length; i++) { dot += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; }
+  return (na && nb) ? dot / (Math.sqrt(na) * Math.sqrt(nb)) : 0;
+}
+
+/** Safely parse the Related cell (JSON string) into an array. */
+function parseRelated(cell) {
+  if (!cell) return [];
+  try { var v = JSON.parse(cell); return Array.isArray(v) ? v : []; } catch (e) { return []; }
+}
+
+/**
+ * Recomputes the top-K related entries for every APPROVED row that has an
+ * embedding, and writes the result into column O. Run on a trigger or via the
+ * "AI Repository" menu after approving a batch. Cheap: pure math, no API calls.
+ */
+function refreshRelated() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+  var rows = sheet.getDataRange().getValues();
+
+  // Collect approved rows that have a cached embedding.
+  var items = [];
+  for (var i = 1; i < rows.length; i++) {
+    var r = rows[i];
+    if (String(r[COL.STATUS - 1]).toUpperCase() !== 'APPROVED') continue;
+    var raw = r[COL.EMBEDDING - 1];
+    if (!raw) continue;
+    var vec;
+    try { vec = JSON.parse(raw); } catch (e) { continue; }
+    items.push({
+      rowNum: i + 1,
+      id: i + 1,
+      title: r[COL.TITLE - 1],
+      department: r[COL.DEPARTMENT - 1],
+      tool: r[COL.TOOL - 1],
+      vec: vec
+    });
+  }
+
+  // For each item, score against every other and keep the top K.
+  for (var a = 0; a < items.length; a++) {
+    var scores = [];
+    for (var b = 0; b < items.length; b++) {
+      if (a === b) continue;
+      var sim = cosineSim(items[a].vec, items[b].vec);
+      if (sim >= RELATED_MIN_SIM) {
+        scores.push({
+          id: items[b].id,
+          title: items[b].title,
+          department: items[b].department,
+          tool: items[b].tool,
+          score: Math.round(sim * 100) / 100
+        });
+      }
+    }
+    scores.sort(function (x, y) { return y.score - x.score; });
+    sheet.getRange(items[a].rowNum, COL.RELATED).setValue(JSON.stringify(scores.slice(0, RELATED_TOP_K)));
+  }
+
+  console.log('refreshRelated: updated ' + items.length + ' approved entries.');
+}
+
+/** Adds a custom menu so you can rebuild related links from the Sheet UI. */
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('AI Repository')
+    .addItem('Rebuild related links', 'refreshRelated')
+    .addItem('Curate new submissions now', 'curateNewSubmissions')
+    .addToUi();
+}
+
+/** One-off: embed any APPROVED/TAGGED rows that are missing an embedding, then refresh related. */
+function backfillEmbeddings() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+  var rows = sheet.getDataRange().getValues();
+  var done = 0;
+  for (var i = 1; i < rows.length; i++) {
+    var r = rows[i];
+    var status = String(r[COL.STATUS - 1]).toUpperCase();
+    if (status !== 'APPROVED' && status !== 'TAGGED') continue;
+    if (r[COL.EMBEDDING - 1]) continue; // already embedded
+    try {
+      var vec = embedText(r[COL.TITLE - 1] + '\n' + r[COL.SUMMARY - 1] + '\n' + r[COL.STORY - 1]);
+      sheet.getRange(i + 1, COL.EMBEDDING).setValue(JSON.stringify(vec));
+      done++;
+    } catch (err) {
+      console.error('Backfill embedding failed for row ' + (i + 1) + ': ' + err);
+    }
+  }
+  console.log('backfillEmbeddings: embedded ' + done + ' rows.');
+  refreshRelated();
 }

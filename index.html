@@ -138,6 +138,19 @@
   .card.open .fulltext { display: block; }
   .card-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
   .card-tags .tg { font: 600 11px/1 var(--body); color: var(--muted); background: #f3f1ea; border-radius: 5px; padding: 4px 8px; cursor: pointer; }
+  /* Related experiences — only shown when a card is expanded */
+  .related { display: none; margin-bottom: 14px; border-top: 1px solid var(--rule); padding-top: 12px; }
+  .card.open .related { display: block; }
+  .related-h { font-family: var(--display); font-weight: 700; font-size: 10.5px; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--faint); margin-bottom: 8px; }
+  .related-item { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; cursor: pointer;
+    background: #faf8f4; border: 1px solid var(--rule); border-radius: 7px; padding: 8px 10px; margin-bottom: 6px;
+    font: inherit; transition: background .12s, border-color .12s; }
+  .related-item:hover { background: #fff; border-color: #d8d3c8; }
+  .related-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .related-title { flex: 1; font-family: var(--display); font-weight: 700; font-size: 12.5px; color: #2b2b2b;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .related-meta { flex: none; font: 600 11px/1 var(--body); color: var(--faint); }
   .card-foot { display: flex; align-items: center; gap: 9px; padding-top: 13px; border-top: 1px solid var(--rule); margin-top: auto; }
   .avatar { width: 26px; height: 26px; border-radius: 50%; background: #f0ede6; display: flex; align-items: center;
     justify-content: center; font-family: var(--display); font-weight: 800; font-size: 10.5px; color: var(--crimson); flex: none; }
@@ -351,6 +364,8 @@ async function load() {
       tags: Array.isArray(e.tags) ? e.tags : [],
       author: e.name || 'Anonymous', role: e.role || '', dept: e.department || '',
       date: e.date || '',
+      id: e.id,
+      related: Array.isArray(e.related) ? e.related : [],
     }));
   } catch (err) {
     state.entries = SAMPLE;
@@ -490,6 +505,7 @@ function card(e) {
 
   const art = document.createElement('article');
   art.className = 'card';
+  if (e.id != null) art.dataset.id = String(e.id);
   art.innerHTML = `
     <button class="card-close" title="Collapse" aria-label="Collapse">✕</button>
     <div class="card-top">
@@ -501,6 +517,14 @@ function card(e) {
     ${isPrompt && e.story ? `<div class="promptbox"><div class="code">${esc(e.story)}</div></div>` : ''}
     ${!isPrompt && e.story ? `<div class="fulltext">${esc(e.story)}</div>` : ''}
     ${tags.length ? `<div class="card-tags">${tags.map(t => `<span class="tg" data-tag="${esc(t)}">#${esc(t)}</span>`).join('')}</div>` : ''}
+    ${(e.related && e.related.length) ? `<div class="related">
+      <div class="related-h">Similar workflows across disciplines</div>
+      ${e.related.map(rel => `<button class="related-item" data-open-id="${esc(String(rel.id))}">
+        <span class="related-dot" style="background:${toolMeta(toolIdFromName(rel.tool)).color}"></span>
+        <span class="related-title">${esc(rel.title)}</span>
+        <span class="related-meta">${esc(rel.department || rel.tool || '')}${(rel.score != null) ? ' · ' + Math.round(rel.score * 100) + '%' : ''}</span>
+      </button>`).join('')}
+    </div>` : ''}
     <div class="card-foot">
       <span class="avatar">${esc(initials(e.author))}</span>
       <div class="who">
@@ -531,6 +555,10 @@ function card(e) {
   art.querySelectorAll('.tg').forEach(tEl => {
     tEl.onclick = (ev) => { ev.stopPropagation(); state.tag = tEl.dataset.tag; render(); };
   });
+  // related-item click → jump to that card (don't toggle this one)
+  art.querySelectorAll('.related-item').forEach(rEl => {
+    rEl.onclick = (ev) => { ev.stopPropagation(); openCardById(rEl.dataset.openId); };
+  });
   // explicit close button
   art.querySelector('.card-close').onclick = (ev) => { ev.stopPropagation(); setOpen(false); };
   // primary action: copy (prompt) or expand/collapse (story)
@@ -546,6 +574,25 @@ function card(e) {
   // clicking the card body expands/collapses
   art.onclick = toggle;
   return art;
+}
+
+/** Open the card with the given entry id, scroll to it, expanding it (accordion). */
+function openCardById(id) {
+  id = String(id);
+  let el = document.querySelector('article.card[data-id="' + id + '"]');
+  // If the target is filtered out of the current view, clear filters and re-render.
+  if (!el) {
+    state.type = 'all'; state.tool = 'all'; state.category = 'all'; state.tag = ''; state.query = '';
+    const s = document.getElementById('search'); if (s) s.value = '';
+    render();
+    el = document.querySelector('article.card[data-id="' + id + '"]');
+  }
+  if (!el) return;
+  document.querySelectorAll('article.card.open').forEach(c => { if (c !== el) collapseCard(c); });
+  el.classList.add('open');
+  const a = el.querySelector('.card-action');
+  if (a && a.dataset.kind === 'story') a.textContent = 'Hide story';
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 /** Collapse a card element and reset its story action label. */
