@@ -7,7 +7,7 @@
  * Status lifecycle: NEW -> TAGGED (by the curation agent) -> APPROVED (by you) -> visible on the site
  *
  * Setup (see README.md):
- * 1. Script Properties: add ANTHROPIC_API_KEY (curation) and OPENAI_API_KEY (embeddings)
+ * 1. Script Properties: add ANTHROPIC_API_KEY (curation) and GEMINI_API_KEY (embeddings)
  * 2. Deploy > New deployment > Web app, execute as Me, access: Anyone
  * 3. Triggers: time-driven trigger on curateNewSubmissions, every 15 minutes
  * 4. (optional) time-driven trigger on refreshRelated, every 15 minutes, to keep the
@@ -17,7 +17,8 @@
  * Semantic "Related experiences" (columns N/O):
  *   - N (Embedding): each entry's vector, cached as JSON so it is only computed once.
  *   - O (Related): JSON array of the top matches [{id,title,department,tool,score}].
- *   Anthropic has no embeddings API, so embeddings use OpenAI text-embedding-3-small.
+ *   Anthropic has no embeddings API, so embeddings use Google's text-embedding-004
+ *   (Gemini API) — a vendor the University already provides institutionally.
  */
 
 var SHEET_NAME = 'Submissions';
@@ -33,11 +34,13 @@ var COL = {
   EMBEDDING: 14, RELATED: 15
 };
 
-// "Related experiences" tuning.
-var EMBED_MODEL = 'text-embedding-3-small';
-var EMBED_DIMS = 512;      // smaller vectors: lighter cells, negligible quality loss
-var RELATED_TOP_K = 3;     // how many related entries to show per card
-var RELATED_MIN_SIM = 0.30; // ignore weak matches below this cosine similarity
+// "Related experiences" tuning. Embeddings use Google (Gemini API) — Anthropic has
+// no embeddings endpoint, and the University already provides Gemini institutionally,
+// so it's a vendor the data can flow to without a new data-processing agreement.
+var EMBED_MODEL = 'text-embedding-004';   // Google Gemini API; native 768-dim
+var EMBED_TASK = 'SEMANTIC_SIMILARITY';   // symmetric entry-to-entry matching
+var RELATED_TOP_K = 3;                     // how many related entries to show per card
+var RELATED_MIN_SIM = 0.55;                // ignore weak matches below this cosine similarity (tune on real data)
 
 var ENTRY_TYPES = ['Prompt template', 'Experience story'];
 
@@ -287,22 +290,29 @@ function testCuration() {
 // Related experiences — semantic "similar workflows across disciplines"
 // ---------------------------------------------------------------------------
 
-/** Embeds text with OpenAI and returns the vector (array of floats). */
+/** Embeds text with the Google (Gemini) API and returns the vector (array of floats). */
 function embedText(text) {
-  var key = PropertiesService.getScriptProperties().getProperty('OPENAI_API_KEY');
-  if (!key) throw new Error('OPENAI_API_KEY is not set in Script Properties');
+  var key = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
+  if (!key) throw new Error('GEMINI_API_KEY is not set in Script Properties');
 
-  var response = UrlFetchApp.fetch('https://api.openai.com/v1/embeddings', {
+  var url = 'https://generativelanguage.googleapis.com/v1beta/models/' + EMBED_MODEL + ':embedContent';
+  var response = UrlFetchApp.fetch(url, {
     method: 'post',
     contentType: 'application/json',
-    headers: { Authorization: 'Bearer ' + key },
-    payload: JSON.stringify({ model: EMBED_MODEL, input: String(text).slice(0, 8000), dimensions: EMBED_DIMS }),
+    headers: { 'x-goog-api-key': key },
+    payload: JSON.stringify({
+      model: 'models/' + EMBED_MODEL,
+      content: { parts: [{ text: String(text).slice(0, 8000) }] },
+      taskType: EMBED_TASK
+    }),
     muteHttpExceptions: true
   });
 
   var code = response.getResponseCode();
   if (code !== 200) throw new Error('Embedding API error ' + code + ': ' + response.getContentText());
-  return JSON.parse(response.getContentText()).data[0].embedding;
+  var body = JSON.parse(response.getContentText());
+  if (!body.embedding || !body.embedding.values) throw new Error('Embedding API: unexpected response ' + response.getContentText().slice(0, 200));
+  return body.embedding.values;
 }
 
 /** Cosine similarity between two equal-length vectors. */

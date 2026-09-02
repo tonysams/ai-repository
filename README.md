@@ -65,14 +65,16 @@ The human-in-the-loop step is deliberate: nothing appears on the site until you 
 
 When a card is expanded, it can show a **"Similar workflows across disciplines"** list — entries that are semantically close, even when they use different words or tools. This is powered by embeddings, computed once per entry and cached in the Sheet. It's additive: if you don't turn it on, the site works exactly as before (the section simply doesn't appear).
 
+Embeddings use **Google's `text-embedding-004` (Gemini API)**. Anthropic has no embeddings endpoint, and Gemini is a vendor the University already provides institutionally — so entry text (which includes names and departments) flows to a data processor that's likely already vetted, rather than introducing a new one.
+
 **To enable it:**
 
 1. **Add two columns** to the `Submissions` sheet: `Embedding` (N) and `Related` (O).
-2. **Add an embeddings API key** — Anthropic has no embeddings endpoint, so this uses OpenAI. Script Properties → add `OPENAI_API_KEY`.
+2. **Add a Gemini API key** — get one from [Google AI Studio](https://aistudio.google.com/apikey). Script Properties → add `GEMINI_API_KEY`.
 3. **Backfill existing entries** — in the Apps Script editor, run `backfillEmbeddings()` once. It embeds every approved/tagged row that lacks a vector, then builds the related links.
 4. **Keep it fresh** — either add a second time-driven trigger on `refreshRelated` (every 15 min), or use the **AI Repository → Rebuild related links** menu (added to the Sheet automatically) after approving a batch.
 
-New submissions get embedded automatically during curation from then on. Cost is negligible (`text-embedding-3-small` is $0.02 per million tokens). Tuning knobs live at the top of `Code.gs`: `RELATED_TOP_K`, `RELATED_MIN_SIM`, `EMBED_DIMS`.
+New submissions get embedded automatically during curation from then on. Cost is negligible. Tuning knobs live at the top of `Code.gs`: `RELATED_TOP_K` (matches per card), `RELATED_MIN_SIM` (similarity floor — tune on real data).
 
 > This feature shines once there are ~20–30 approved entries across several departments — with only a handful, the matches will feel thin.
 
