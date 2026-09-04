@@ -2,14 +2,23 @@
  * AI Experience Repository — Google Apps Script backend
  *
  * Bound to a Google Sheet with a tab named "Submissions" and this header row:
- * Timestamp | Name | Email | Role | Department | Tool | Title | Story | Status | Tags | Summary | Category | Type
+ * Timestamp | Name | Email | Role | Department | Tool | Title | Story | Status | Tags | Summary | Category | Type | Embedding | Related
  *
  * Status lifecycle: NEW -> TAGGED (by the curation agent) -> APPROVED (by you) -> visible on the site
  *
  * Setup (see README.md):
- * 1. Script Properties: add ANTHROPIC_API_KEY
+ * 1. Script Properties: add ANTHROPIC_API_KEY (curation) and GEMINI_API_KEY (embeddings)
  * 2. Deploy > New deployment > Web app, execute as Me, access: Anyone
  * 3. Triggers: time-driven trigger on curateNewSubmissions, every 15 minutes
+ * 4. (optional) time-driven trigger on refreshRelated, every 15 minutes, to keep the
+ *    "Related experiences" links current as you approve entries. Or use the custom
+ *    "AI Repository > Rebuild related links" menu button after an approval session.
+ *
+ * Semantic "Related experiences" (columns N/O):
+ *   - N (Embedding): each entry's vector, cached as JSON so it is only computed once.
+ *   - O (Related): JSON array of the top matches [{id,title,department,tool,score}].
+ *   Anthropic has no embeddings API, so embeddings use Google's text-embedding-004
+ *   (Gemini API) — a vendor the University already provides institutionally.
  */
 
 var SHEET_NAME = 'Submissions';
@@ -21,8 +30,17 @@ var SHEET_URL = 'https://docs.google.com/spreadsheets/d/1Frg1bD2fEYAzJ813ZoehSYM
 
 var COL = {
   TIMESTAMP: 1, NAME: 2, EMAIL: 3, ROLE: 4, DEPARTMENT: 5, TOOL: 6,
-  TITLE: 7, STORY: 8, STATUS: 9, TAGS: 10, SUMMARY: 11, CATEGORY: 12, TYPE: 13
+  TITLE: 7, STORY: 8, STATUS: 9, TAGS: 10, SUMMARY: 11, CATEGORY: 12, TYPE: 13,
+  EMBEDDING: 14, RELATED: 15
 };
+
+// "Related experiences" tuning. Embeddings use Google (Gemini API) — Anthropic has
+// no embeddings endpoint, and the University already provides Gemini institutionally,
+// so it's a vendor the data can flow to without a new data-processing agreement.
+var EMBED_MODEL = 'gemini-embedding-001'; // Google Gemini API (current GA embedding model)
+var EMBED_TASK = 'SEMANTIC_SIMILARITY';   // symmetric entry-to-entry matching
+var RELATED_TOP_K = 3;                     // how many related entries to show per card
+var RELATED_MIN_SIM = 0.55;                // ignore weak matches below this cosine similarity (tune on real data)
 
 var ENTRY_TYPES = ['Prompt template', 'Experience story'];
 
@@ -63,7 +81,8 @@ function doGet(e) {
       tags: String(r[COL.TAGS - 1]).split(',').map(function (t) { return t.trim(); }).filter(String),
       summary: r[COL.SUMMARY - 1],
       category: r[COL.CATEGORY - 1],
-      type: r[COL.TYPE - 1] || ''
+      type: r[COL.TYPE - 1] || '',
+      related: parseRelated(r[COL.RELATED - 1])
     });
   }
 
@@ -173,6 +192,15 @@ function curateNewSubmissions() {
       sheet.getRange(rowNum, COL.SUMMARY).setValue(result.summary);
       sheet.getRange(rowNum, COL.CATEGORY).setValue(result.category);
       sheet.getRange(rowNum, COL.STATUS).setValue('TAGGED');
+
+      // Compute + cache the embedding once, so it never needs re-embedding.
+      // A failure here must not block tagging — related links are a nice-to-have.
+      try {
+        var vec = embedText(r[COL.TITLE - 1] + '\n' + result.summary + '\n' + r[COL.STORY - 1]);
+        sheet.getRange(rowNum, COL.EMBEDDING).setValue(JSON.stringify(vec));
+      } catch (embErr) {
+        console.error('Embedding failed for row ' + rowNum + ': ' + embErr);
+      }
     } catch (err) {
       // Leave the row as NEW so the next run retries; log for inspection.
       console.error('Curation failed for row ' + (i + 1) + ': ' + err);
@@ -186,7 +214,7 @@ function curateWithClaude(submission) {
   if (!apiKey) throw new Error('ANTHROPIC_API_KEY is not set in Script Properties');
 
   var payload = {
-    model: 'claude-opus-4-8',
+    model: 'claude-opus-5',
     max_tokens: 1024,
     system: 'You curate a university repository of staff and faculty AI experiences. ' +
       'For each submission, write a one-to-two sentence summary in plain language, ' +
@@ -256,4 +284,149 @@ function testCuration() {
     story: 'I upload PDFs of journal articles and ask Claude to extract the methodology and key findings into a comparison table. It cut my lit review prep time roughly in half.'
   });
   console.log(JSON.stringify(result, null, 2));
+}
+
+// ---------------------------------------------------------------------------
+// Related experiences — semantic "similar workflows across disciplines"
+// ---------------------------------------------------------------------------
+
+/** Embeds text with the Google (Gemini) API and returns the vector (array of floats). */
+function embedText(text) {
+  var key = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
+  if (!key) throw new Error('GEMINI_API_KEY is not set in Script Properties');
+
+  var url = 'https://generativelanguage.googleapis.com/v1beta/models/' + EMBED_MODEL + ':embedContent';
+  var response = UrlFetchApp.fetch(url, {
+    method: 'post',
+    contentType: 'application/json',
+    headers: { 'x-goog-api-key': key },
+    payload: JSON.stringify({
+      model: 'models/' + EMBED_MODEL,
+      content: { parts: [{ text: String(text).slice(0, 8000) }] },
+      taskType: EMBED_TASK,
+      outputDimensionality: 768   // keep vectors small enough for a Sheet cell; cosine sim is unaffected
+    }),
+    muteHttpExceptions: true
+  });
+
+  var code = response.getResponseCode();
+  if (code !== 200) throw new Error('Embedding API error ' + code + ': ' + response.getContentText());
+  var body = JSON.parse(response.getContentText());
+  if (!body.embedding || !body.embedding.values) throw new Error('Embedding API: unexpected response ' + response.getContentText().slice(0, 200));
+  return body.embedding.values;
+}
+
+/** Diagnostic: logs which models your GEMINI_API_KEY can use for embeddings.
+ *  Run this if embedText() 404s, then set EMBED_MODEL to one of the names it prints. */
+function listEmbeddingModels() {
+  var key = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
+  if (!key) { Logger.log('GEMINI_API_KEY is not set in Script Properties'); return; }
+  var response = UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models', {
+    method: 'get', headers: { 'x-goog-api-key': key }, muteHttpExceptions: true
+  });
+  if (response.getResponseCode() !== 200) { Logger.log('ListModels error: ' + response.getContentText()); return; }
+  var models = (JSON.parse(response.getContentText()).models) || [];
+  var found = 0;
+  models.forEach(function (m) {
+    if ((m.supportedGenerationMethods || []).indexOf('embedContent') !== -1) {
+      Logger.log('EMBEDS: ' + m.name);   // e.g. "models/gemini-embedding-001"
+      found++;
+    }
+  });
+  Logger.log('--- ' + found + ' embedding model(s). Use one above (drop the "models/" prefix) for EMBED_MODEL. ---');
+}
+
+/** Cosine similarity between two equal-length vectors. */
+function cosineSim(a, b) {
+  var dot = 0, na = 0, nb = 0;
+  for (var i = 0; i < a.length; i++) { dot += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; }
+  return (na && nb) ? dot / (Math.sqrt(na) * Math.sqrt(nb)) : 0;
+}
+
+/** Safely parse the Related cell (JSON string) into an array. */
+function parseRelated(cell) {
+  if (!cell) return [];
+  try { var v = JSON.parse(cell); return Array.isArray(v) ? v : []; } catch (e) { return []; }
+}
+
+/**
+ * Recomputes the top-K related entries for every APPROVED row that has an
+ * embedding, and writes the result into column O. Run on a trigger or via the
+ * "AI Repository" menu after approving a batch. Cheap: pure math, no API calls.
+ */
+function refreshRelated() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+  var rows = sheet.getDataRange().getValues();
+
+  // Collect approved rows that have a cached embedding.
+  var items = [];
+  for (var i = 1; i < rows.length; i++) {
+    var r = rows[i];
+    if (String(r[COL.STATUS - 1]).toUpperCase() !== 'APPROVED') continue;
+    var raw = r[COL.EMBEDDING - 1];
+    if (!raw) continue;
+    var vec;
+    try { vec = JSON.parse(raw); } catch (e) { continue; }
+    items.push({
+      rowNum: i + 1,
+      id: i + 1,
+      title: r[COL.TITLE - 1],
+      department: r[COL.DEPARTMENT - 1],
+      tool: r[COL.TOOL - 1],
+      vec: vec
+    });
+  }
+
+  // For each item, score against every other and keep the top K.
+  for (var a = 0; a < items.length; a++) {
+    var scores = [];
+    for (var b = 0; b < items.length; b++) {
+      if (a === b) continue;
+      var sim = cosineSim(items[a].vec, items[b].vec);
+      if (sim >= RELATED_MIN_SIM) {
+        scores.push({
+          id: items[b].id,
+          title: items[b].title,
+          department: items[b].department,
+          tool: items[b].tool,
+          score: Math.round(sim * 100) / 100
+        });
+      }
+    }
+    scores.sort(function (x, y) { return y.score - x.score; });
+    sheet.getRange(items[a].rowNum, COL.RELATED).setValue(JSON.stringify(scores.slice(0, RELATED_TOP_K)));
+  }
+
+  console.log('refreshRelated: updated ' + items.length + ' approved entries.');
+}
+
+/** Adds a custom menu so you can rebuild related links from the Sheet UI. */
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('AI Repository')
+    .addItem('Rebuild related links', 'refreshRelated')
+    .addItem('Curate new submissions now', 'curateNewSubmissions')
+    .addToUi();
+}
+
+/** One-off: embed any APPROVED/TAGGED rows that are missing an embedding, then refresh related. */
+function backfillEmbeddings() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+  var rows = sheet.getDataRange().getValues();
+  var done = 0;
+  for (var i = 1; i < rows.length; i++) {
+    var r = rows[i];
+    var status = String(r[COL.STATUS - 1]).toUpperCase();
+    if (status !== 'APPROVED' && status !== 'TAGGED') continue;
+    if (r[COL.EMBEDDING - 1]) continue; // already embedded
+    try {
+      var vec = embedText(r[COL.TITLE - 1] + '\n' + r[COL.SUMMARY - 1] + '\n' + r[COL.STORY - 1]);
+      sheet.getRange(i + 1, COL.EMBEDDING).setValue(JSON.stringify(vec));
+      done++;
+    } catch (err) {
+      console.error('Backfill embedding failed for row ' + (i + 1) + ': ' + err);
+    }
+  }
+  console.log('backfillEmbeddings: embedded ' + done + ' rows.');
+  refreshRelated();
 }
