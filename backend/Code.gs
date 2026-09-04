@@ -37,7 +37,7 @@ var COL = {
 // "Related experiences" tuning. Embeddings use Google (Gemini API) — Anthropic has
 // no embeddings endpoint, and the University already provides Gemini institutionally,
 // so it's a vendor the data can flow to without a new data-processing agreement.
-var EMBED_MODEL = 'text-embedding-004';   // Google Gemini API; native 768-dim
+var EMBED_MODEL = 'gemini-embedding-001'; // Google Gemini API (current GA embedding model)
 var EMBED_TASK = 'SEMANTIC_SIMILARITY';   // symmetric entry-to-entry matching
 var RELATED_TOP_K = 3;                     // how many related entries to show per card
 var RELATED_MIN_SIM = 0.55;                // ignore weak matches below this cosine similarity (tune on real data)
@@ -313,6 +313,26 @@ function embedText(text) {
   var body = JSON.parse(response.getContentText());
   if (!body.embedding || !body.embedding.values) throw new Error('Embedding API: unexpected response ' + response.getContentText().slice(0, 200));
   return body.embedding.values;
+}
+
+/** Diagnostic: logs which models your GEMINI_API_KEY can use for embeddings.
+ *  Run this if embedText() 404s, then set EMBED_MODEL to one of the names it prints. */
+function listEmbeddingModels() {
+  var key = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
+  if (!key) { Logger.log('GEMINI_API_KEY is not set in Script Properties'); return; }
+  var response = UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models', {
+    method: 'get', headers: { 'x-goog-api-key': key }, muteHttpExceptions: true
+  });
+  if (response.getResponseCode() !== 200) { Logger.log('ListModels error: ' + response.getContentText()); return; }
+  var models = (JSON.parse(response.getContentText()).models) || [];
+  var found = 0;
+  models.forEach(function (m) {
+    if ((m.supportedGenerationMethods || []).indexOf('embedContent') !== -1) {
+      Logger.log('EMBEDS: ' + m.name);   // e.g. "models/gemini-embedding-001"
+      found++;
+    }
+  });
+  Logger.log('--- ' + found + ' embedding model(s). Use one above (drop the "models/" prefix) for EMBED_MODEL. ---');
 }
 
 /** Cosine similarity between two equal-length vectors. */
