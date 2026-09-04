@@ -303,7 +303,8 @@ function embedText(text) {
     payload: JSON.stringify({
       model: 'models/' + EMBED_MODEL,
       content: { parts: [{ text: String(text).slice(0, 8000) }] },
-      taskType: EMBED_TASK
+      taskType: EMBED_TASK,
+      outputDimensionality: 768   // keep vectors small enough for a Sheet cell; cosine sim is unaffected
     }),
     muteHttpExceptions: true
   });
