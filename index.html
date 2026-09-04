@@ -551,10 +551,6 @@ function card(e) {
     setOpen(willOpen);
   };
 
-  // tag click → filter (don't toggle card)
-  art.querySelectorAll('.tg').forEach(tEl => {
-    tEl.onclick = (ev) => { ev.stopPropagation(); state.tag = tEl.dataset.tag; render(); };
-  });
   // related-item click → jump to that card (don't toggle this one)
   art.querySelectorAll('.related-item').forEach(rEl => {
     rEl.onclick = (ev) => { ev.stopPropagation(); openCardById(rEl.dataset.openId); };
