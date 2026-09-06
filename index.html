@@ -32,7 +32,7 @@
     display: flex; align-items: center; justify-content: space-between;
     padding: 11px 34px;
   }
-  .brandbar .left { display: flex; align-items: center; gap: 13px; }
+  .brandbar .left { display: flex; align-items: center; gap: 13px; text-decoration: none; color: inherit; cursor: pointer; }
   .ulogo { height: 28px; width: auto; display: block; }
   .brandbar .wordmark {
     font-family: var(--display); font-weight: 800; font-size: 13px;
@@ -206,12 +206,13 @@
 <body>
 
 <div class="brandbar">
-  <div class="left">
+  <a class="left" href="https://www.utah.edu/" target="_blank" rel="noopener" aria-label="University of Utah home (utah.edu)">
     <img class="ulogo" src="assets/BlockU_white.png" alt="University of Utah">
     <span class="wordmark">The University of Utah</span>
-  </div>
+  </a>
   <nav>
     <span class="on" data-scrolltop>Field Notes</span>
+    <span data-aiutah>AI Utah</span>
     <span data-dlt>DLT</span>
     <span class="on" data-contribute>Contribute</span>
   </nav>
@@ -315,6 +316,7 @@
 <script>
 // ── Configuration ───────────────────────────────────────────────────────────
 const API_URL = 'https://script.google.com/macros/s/AKfycbzYCkdMQVTjQeTpCZtqj3oFWxDzmR6b2UAmzrbN3ufmEnRC0hijVOxUa-EM2oTYQTuK6Q/exec';
+const AIUTAH_URL = 'https://ai.utah.edu/';
 const DLT_URL = 'https://dlt.utah.edu/';
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -609,6 +611,7 @@ function toast(msg) {
 // ── Wiring ───────────────────────────────────────────────────────────────────
 document.getElementById('search').addEventListener('input', e => { state.query = e.target.value; render(); });
 document.querySelector('[data-scrolltop]').onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+document.querySelector('[data-aiutah]').onclick = () => window.open(AIUTAH_URL, '_blank', 'noopener');
 document.querySelector('[data-dlt]').onclick = () => window.open(DLT_URL, '_blank', 'noopener');
 
 // ── Contribute modal ─────────────────────────────────────────────────────────
