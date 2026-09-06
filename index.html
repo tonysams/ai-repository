@@ -212,7 +212,7 @@
   </div>
   <nav>
     <span class="on" data-scrolltop>Field Notes</span>
-    <span data-rai>RAI</span>
+    <span data-dlt>DLT</span>
     <span class="on" data-contribute>Contribute</span>
   </nav>
 </div>
@@ -315,7 +315,7 @@
 <script>
 // ── Configuration ───────────────────────────────────────────────────────────
 const API_URL = 'https://script.google.com/macros/s/AKfycbzYCkdMQVTjQeTpCZtqj3oFWxDzmR6b2UAmzrbN3ufmEnRC0hijVOxUa-EM2oTYQTuK6Q/exec';
-const RAI_URL = 'https://rai.utah.edu/';
+const DLT_URL = 'https://dlt.utah.edu/';
 // ────────────────────────────────────────────────────────────────────────────
 
 const TOOLS = [
@@ -609,7 +609,7 @@ function toast(msg) {
 // ── Wiring ───────────────────────────────────────────────────────────────────
 document.getElementById('search').addEventListener('input', e => { state.query = e.target.value; render(); });
 document.querySelector('[data-scrolltop]').onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
-document.querySelector('[data-rai]').onclick = () => window.open(RAI_URL, '_blank', 'noopener');
+document.querySelector('[data-dlt]').onclick = () => window.open(DLT_URL, '_blank', 'noopener');
 
 // ── Contribute modal ─────────────────────────────────────────────────────────
 const scrim = document.getElementById('scrim');
