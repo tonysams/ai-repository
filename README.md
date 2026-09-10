@@ -1,6 +1,6 @@
 # AI Experience Repository
 
-A searchable, AI-curated repository of staff and faculty AI experiences — prompts, workflows, and lessons learned with ChatGPT Edu, Google Gemini, NotebookLM, Claude, and Microsoft Copilot.
+A searchable, AI-curated repository of staff and faculty AI experiences — prompts, workflows, and lessons learned with ChatGPT Edu, Google Gemini, Gemini Notebook, Claude, and Microsoft Copilot.
 
 ## How it works
 
