@@ -298,7 +298,7 @@
         <div class="field"><label>Department / unit</label><input name="department"></div>
       </div>
       <div class="field"><label>Which tool? *</label>
-        <select name="tool"><option value="">Choose one…</option><option>ChatGPT Edu</option><option>Google Gemini</option><option>NotebookLM</option><option>Claude</option><option>Microsoft Copilot</option><option>Other</option></select>
+        <select name="tool"><option value="">Choose one…</option><option>ChatGPT Edu</option><option>Google Gemini</option><option>Gemini Notebook</option><option>Claude</option><option>Microsoft Copilot</option><option>Other</option></select>
       </div>
       <div class="field"><label>Title</label><input name="title" placeholder="e.g., Drafting rubrics from a messy assignment brief"></div>
       <div class="field"><label>Your experience or prompt *</label>
@@ -323,7 +323,7 @@ const DLT_URL = 'https://dlt.utah.edu/';
 const TOOLS = [
   { id: 'chatgpt',    name: 'ChatGPT Edu',       color: '#10a37f' },
   { id: 'gemini',     name: 'Google Gemini',     color: '#4587f4' },
-  { id: 'notebooklm', name: 'NotebookLM',        color: '#e8833a' },
+  { id: 'notebooklm', name: 'Gemini Notebook',   color: '#e8833a' },
   { id: 'claude',     name: 'Claude',            color: '#d97757' },
   { id: 'copilot',    name: 'Microsoft Copilot', color: '#5b6ee0' },
   { id: 'other',      name: 'Other',             color: '#8a857b' },
@@ -671,7 +671,7 @@ const SAMPLE = [
   { tool:'notebooklm', type:'story', category:'Administration',
     title:'Making 200 pages of policy searchable for the front desk',
     summary:'Loaded the advising handbook and registration policies into a notebook so student-workers can ask questions and get cited answers.',
-    story:'I uploaded our handbook and the registration policy PDFs into a NotebookLM notebook. Now student-workers ask it questions instead of interrupting me, and every answer cites the source page so we can verify it.',
+    story:'I uploaded our handbook and the registration policy PDFs into a Gemini Notebook. Now student-workers ask it questions instead of interrupting me, and every answer cites the source page so we can verify it.',
     tags:['policy','administrative','summarization'], author:'M. Nguyen', role:'Staff', dept:'Office of the Registrar' },
   { tool:'claude', type:'prompt', category:'Teaching',
     title:'Turning lecture notes into a weekly student recap',
