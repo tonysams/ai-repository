@@ -47,7 +47,13 @@
 
   /* ===== masthead ===== */
   header.mast { background: var(--card); border-bottom: 3px solid var(--crimson); padding: 50px 34px 40px; }
-  .mast .inner { max-width: 1120px; margin: 0 auto; }
+  .mast .inner { max-width: 1120px; margin: 0 auto; display: flex; align-items: center; gap: 40px; }
+  .mast .mast-text { flex: 1; min-width: 0; }
+  .mast-badge { flex: none; width: 176px; text-align: center; }
+  .mast-badge img { width: 100%; height: auto; display: block;
+    filter: drop-shadow(0 12px 18px rgba(0,0,0,.22)); transform: rotate(-4deg); }
+  .mast-badge figcaption { margin-top: 12px; font-family: var(--display); font-weight: 700; font-size: 11px;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--muted); line-height: 1.4; }
   .eyebrow { font-family: var(--display); font-weight: 700; font-size: 12px;
     letter-spacing: .18em; text-transform: uppercase; color: var(--crimson); margin-bottom: 16px; }
   .mast h1 { font-family: var(--display); font-weight: 900; font-size: 60px; line-height: .96;
@@ -82,6 +88,9 @@
   .facet .count { font: 600 12px/1 var(--body); color: #a7a39a; }
   .rail-cta { background: var(--crimson); border-radius: 10px; padding: 20px; color: #fff;
     box-shadow: 0 8px 22px -10px rgba(204,0,0,.6); }
+  .rail-cta-top { display: flex; align-items: center; gap: 12px; margin-bottom: 7px; }
+  .rail-cta-top img { width: 52px; height: auto; flex: none; filter: drop-shadow(0 4px 6px rgba(0,0,0,.3)); }
+  .rail-cta-top .rail-cta-h { margin-bottom: 0; }
   .rail-cta-h { font-family: var(--display); font-weight: 800; font-size: 18px; line-height: 1.15; margin-bottom: 7px; }
   .rail-cta p { font-size: 13.5px; line-height: 1.45; color: rgba(255,255,255,.9); margin-bottom: 15px; }
   .rail-cta-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;
@@ -192,6 +201,11 @@
   .formnote { font-size: 13px; margin-right: auto; }
   .formnote.err { color: var(--crimson); }
   .formnote.ok { color: #1a7f4b; }
+  .thanks { display: none; text-align: center; padding: 8px 0 4px; }
+  .modal.done #form, .modal.done > h2, .modal.done > p.sub { display: none; }
+  .modal.done .thanks { display: block; }
+  .thanks img { width: 150px; height: auto; margin-bottom: 18px; filter: drop-shadow(0 12px 18px rgba(0,0,0,.22)); }
+  .thanks p { color: var(--muted); font-size: 15px; line-height: 1.5; max-width: 400px; margin: 0 auto 22px; }
   .contribute-cta { background: var(--crimson); color: #fff; }
 
   @media (max-width: 860px) {
@@ -199,6 +213,7 @@
     aside { position: static; max-height: none; }
     .grid { grid-template-columns: 1fr; }
     .mast h1 { font-size: 44px; }
+    .mast-badge { display: none; }
     .brandbar .wordmark { display: none; }
   }
 </style>
@@ -220,6 +235,7 @@
 
 <header class="mast">
   <div class="inner">
+   <div class="mast-text">
     <div class="eyebrow">Digital Learning Technologies</div>
     <h1>AI Experience <span>Field Notes</span></h1>
     <p class="lede">How our staff and faculty actually use AI — the prompts they wrote, the workflows they built, and the lessons they learned. Every entry is reviewed before it appears.</p>
@@ -233,6 +249,11 @@
       </div>
       <button class="btn primary mast-cta" data-contribute>＋ Share your experience</button>
     </div>
+   </div>
+    <figure class="mast-badge">
+      <img src="assets/contributor-badge.png" alt="AI Repository Contributor badge — University of Utah: a circuit-branch tree growing from an open book on a crimson shield" width="347" height="400">
+      <figcaption>Share your story,<br>earn the badge</figcaption>
+    </figure>
   </div>
 </header>
 
@@ -255,8 +276,11 @@
       <div class="facet-list" id="facet-category"></div>
     </div>
     <div class="rail-cta">
-      <div class="rail-cta-h">Used AI in your work?</div>
-      <p>Share a prompt or a story. It takes about two minutes — we tag and review it, then it goes live.</p>
+      <div class="rail-cta-top">
+        <img src="assets/contributor-badge.png" alt="" width="347" height="400">
+        <div class="rail-cta-h">Used AI in your work?</div>
+      </div>
+      <p>Share a prompt or a story. It takes about two minutes — we tag and review it, then it goes live, and you join our AI Repository Contributors.</p>
       <button class="rail-cta-btn" data-contribute><span>+</span> Share your experience</button>
     </div>
   </aside>
@@ -310,6 +334,12 @@
         <button type="submit" class="btn primary" id="submit">Submit experience</button>
       </div>
     </form>
+    <div class="thanks" id="thanks">
+      <img src="assets/contributor-badge.png" alt="AI Repository Contributor badge" width="347" height="400">
+      <h2>You're an AI Repository Contributor</h2>
+      <p>Thank you for adding your chapter. We'll tag and review your experience, and it will appear in Field Notes once approved.</p>
+      <button type="button" class="btn primary" id="thanks-close">Back to Field Notes</button>
+    </div>
   </div>
 </div>
 
@@ -618,10 +648,11 @@ document.querySelector('[data-dlt]').onclick = () => window.open(DLT_URL, '_blan
 const scrim = document.getElementById('scrim');
 const form = document.getElementById('form');
 const note = document.getElementById('formnote');
-function openModal() { note.textContent = ''; note.className = 'formnote'; scrim.classList.add('show'); }
+function openModal() { note.textContent = ''; note.className = 'formnote'; document.getElementById('modal').classList.remove('done'); scrim.classList.add('show'); }
 function closeModal() { scrim.classList.remove('show'); }
 document.querySelectorAll('[data-contribute]').forEach(el => el.onclick = openModal);
 document.getElementById('cancel').onclick = closeModal;
+document.getElementById('thanks-close').onclick = closeModal;
 scrim.addEventListener('click', e => { if (e.target === scrim) closeModal(); });
 
 document.getElementById('typetoggle').querySelectorAll('button').forEach(b => {
@@ -642,12 +673,11 @@ form.addEventListener('submit', async (ev) => {
   document.getElementById('submit').disabled = true;
   try {
     await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(data) });
-    note.textContent = 'Thank you! Your experience was submitted and will appear after review.';
-    note.className = 'formnote ok';
+    note.textContent = ''; note.className = 'formnote';
+    document.getElementById('modal').classList.add('done');
     form.reset();
     document.querySelectorAll('#typetoggle button').forEach((x, i) => x.classList.toggle('active', i === 0));
     state.form.type = 'Experience story';
-    setTimeout(closeModal, 2400);
   } catch (err) {
     note.textContent = 'Something went wrong sending your submission. Please try again.';
     note.className = 'formnote err';
